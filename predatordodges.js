@@ -1,317 +1,301 @@
-"use strict";
+(function () {
+    'use strict';
 
-(function() {
-  // Settings
-  const DEFAULT_SETTINGS = {
-    scriptActive: false,
-    currentScript: 1,
-  };
+    let heldKey = null;
+    let lastPressedKey = null;
+    let currentScript = null;
+    let isRunning = false;
 
-  let settings = DEFAULT_SETTINGS;
+    // Create the UI element
+    const uiElement = document.createElement('div');
+    uiElement.id = 'scriptStatus';
+    uiElement.style.position = 'fixed';
+    uiElement.style.top = '10px';
+    uiElement.style.right = 'calc(40% - 5in)'; // Adjusted to be 5 inches more to the right
+    uiElement.style.padding = '10px';
+    uiElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    uiElement.style.color = 'white';
+    uiElement.style.zIndex = '1000';
+    uiElement.style.borderRadius = '10px'; // Make corners round
+    document.body.appendChild(uiElement);
 
-  const settingsProvider = () => {
-    let sp = new SettingsProvider(DEFAULT_SETTINGS, newSettings => {
-      settings = newSettings;
-    });
+    function updateUI() {
+        uiElement.style.display = 'block';
+        uiElement.innerHTML = `Script Status: ${isRunning ? 'running' : 'paused'}<br>Current Script: ${currentScript !== null ? currentScript : 'n/a'}`;
+    }
 
-    let section = sp.addSection('Predator Dodges');
-    section.addBoolean('scriptActive', 'Enable Predator Dodges');
-    section.addString('currentScript', 'Current Script');
+    document.addEventListener('keydown', function (event) {
+        if (event.repeat) return; // Prevent repeating the action if the key is held down
 
-    return sp;
-  };
+        console.log(`Key pressed: ${event.key}, Code: ${event.code}`);
 
-  const extensionConfig = {
-    name: 'Predator Dodges',
-    id: 'PredatorDodges',
-    description: 'Automates dodging maneuvers for the Predator.',
-    author: 'Monarch',
-    version: '1.0',
-    settingsProvider: settingsProvider()
-  };
-
-  /* VARIABLES */
-  const PI2 = Math.PI * 2;
-  let prevAngle,
-      $laserPointer;
-
-  /* INIT */
-  function init() {
-    initHTML();
-    initStyle();
-    initGame();
-    initEvents();
-  }
-
-  function initHTML() {
-    const html = '<div id="laser-pointer"></div>';
-    $('body').append(html);
-    toggle(false);
-  }
-
-  function initStyle() {
-    const style = `
-      <style>
-        #laser-pointer {
-          display: block;
-          height: 1px;
-          width: calc(50vw * 1.5);
-          opacity: .25;
-          background: white;
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform-origin: 0;
+        // Check for 's' and 'w' keys
+        if (event.key === 's' || event.key === 'w') {
+            handleKeyPress(event.key);
         }
-      </style>
-    `;
-    $('head').append(style);
-  }
 
-  function initGame() {
-    $laserPointer = $('#laser-pointer');
-
-    SWAM.one('playerAdded', Player => {
-      const proto = Object.getPrototypeOf(Player);
-      const prev = proto.update;
-
-      proto.update = function(...args) {
-        prev.call(this, ...args);
-
-        const me = Players.getMe();
-        if (me && this.id === me.id && settings.scriptActive) {
-          update(this.rot);
+        // Start the script
+        if (event.key === 'p') {
+            isRunning = true;
+            updateUI();
+            displayMessage('Predator dodges begins');
+            console.log("Predator dodges begins");
         }
-      };
+        // Pause the script
+        else if (event.code === 'Pause') {
+            isRunning = false;
+            currentScript = null; // Set currentScript to null when paused
+            updateUI();
+            displayMessage('Predator dodges ends');
+            console.log("Predator dodges ends");
+        }
+
+        // Switch between scripts
+        if (isRunning && event.key >= '1' && event.key <= '9') {
+            currentScript = parseInt(event.key);
+            updateUI();
+            console.log(`Switched to script ${currentScript}`);
+        } else if (isRunning && event.key === '0') {
+            currentScript = 10;
+            updateUI();
+            console.log(`Switched to script ${currentScript}`);
+        }
+
+        // Execute the current script with 'q' and 'e'
+        if (isRunning && (event.key === 'q' || event.key === 'e')) {
+            let arrowSide = event.key === 'q' ? 'ArrowLeft' : 'ArrowRight';
+            executeScript(currentScript, 'ArrowDown', arrowSide);
+        }
     });
-  }
 
-  function initEvents() {
-    SWAM.on('keydown', onKeydown);
-    SWAM.on('keyup', onKeyup);
-  }
+    document.addEventListener('keyup', function (event) {
+        console.log(`Key released: ${event.key}, Code: ${event.code}`);
 
-  SWAM.on('gameLoaded', init);
+        // Check for 's' and 'w' keys
+        if (event.key === 's' || event.key === 'w') {
+            handleKeyRelease(event.key);
+        }
+    });
 
-  /* EVENTS */
-  function onKeydown(event) {
-    if (event.originalEvent.key === 'p') {
-      event.stopImmediatePropagation();
-      toggleScriptActive(true);
-    } else if (event.originalEvent.code === 'Pause') {
-      event.stopImmediatePropagation();
-      toggleScriptActive(false);
-    } else if (settings.scriptActive && event.originalEvent.key >= '1' && event.originalEvent.key <= '9') {
-      settings.currentScript = parseInt(event.originalEvent.key);
-      console.log(`Switched to script ${settings.currentScript}`);
-    } else if (settings.scriptActive && event.originalEvent.key === '0') {
-      settings.currentScript = 10;
-      console.log(`Switched to script ${settings.currentScript}`);
-    } else if (settings.scriptActive && (event.originalEvent.key === 'q' || event.originalEvent.key === 'e')) {
-      let arrowSide = event.originalEvent.key === 'q' ? 'ArrowLeft' : 'ArrowRight';
-      executeScript(settings.currentScript, 'ArrowDown', arrowSide);
+    function handleKeyPress(key) {
+        // If a different key is held, release it
+        if (heldKey && heldKey !== key) {
+            releaseKey(heldKey);
+        }
+
+        // Hold the new key
+        if (!heldKey || heldKey !== key) {
+            holdKey(key);
+        }
+
+        lastPressedKey = key;
     }
-  }
 
-  function onKeyup(event) {
-    if (event.originalEvent.key === 's' || event.originalEvent.key === 'w') {
-      handleKeyRelease(event.originalEvent.key);
+    function handleKeyRelease(key) {
+        // Only release the key if it is currently held
+        if (heldKey === key) {
+            heldKey = null;
+            releaseKey(key);
+        }
     }
-  }
 
-  /* API */
-  function toggleScriptActive(force) {
-    settings.scriptActive = force === undefined ? !settings.scriptActive : force;
-    if (settings.scriptActive) {
-      SWAM.showMessage("Predator dodges begins");
-      console.log("Predator dodges begins");
-    } else {
-      SWAM.showMessage("Predator dodges ends");
-      console.log("Predator dodges ends");
+    function executeScript(scriptNumber, arrowDown, arrowSide) {
+        switch (scriptNumber) {
+            case 1:
+                holdCtrlArrow(arrowDown, arrowSide, 10, 500);
+                break;
+            case 2:
+                holdCtrlArrow(arrowDown, arrowSide, 200, 500);
+                break;
+            case 3:
+                holdCtrlArrow(arrowDown, arrowSide, 500, 700);
+                break;
+            case 4:
+                holdCtrlArrow(arrowDown, arrowSide, 300, 500);
+                break;
+            case 5:
+                holdCtrlArrowSingle(arrowSide === 'ArrowLeft' ? 'ArrowUp' : 'ArrowDown', 500);
+                break;
+            case 6:
+                holdCtrlArrow(arrowDown, arrowSide, 0, 500);
+                break;
+            case 7:
+                holdCtrlArrowSingle(arrowSide === 'ArrowLeft' ? 'ArrowUp' : 'ArrowDown', 230);
+                break;
+            case 8:
+                holdCtrlArrowSingle(arrowSide === 'ArrowLeft' ? 'ArrowUp' : 'ArrowDown', 300);
+                break;
+            case 9:
+                holdCtrlArrow(arrowDown, arrowSide, 300, 700);
+                break;
+            case 10:
+                holdCtrlArrow(arrowDown, arrowSide, 500, 1000);
+                break;
+            default:
+                console.log("Invalid script number");
+        }
     }
-  }
 
-  function update(angle) {
-    if (!settings.scriptActive) return;
-    if (angle === prevAngle) return;
+    function holdCtrlArrow(arrowDown, arrowSide, holdTime, releaseTime) {
+        const ctrlKeyDownEvent = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            key: 'Control',
+            code: 'ControlLeft',
+            keyCode: 17,
+            which: 17
+        });
 
-    const deg = (360 * angle / PI2) - 90;
-    $laserPointer[0].style.transform = `rotate(${deg}deg)`;
+        const ctrlKeyUpEvent = new KeyboardEvent('keyup', {
+            bubbles: true,
+            cancelable: true,
+            key: 'Control',
+            code: 'ControlLeft',
+            keyCode: 17,
+            which: 17
+        });
 
-    prevAngle = angle;
-  }
+        const arrowDownEvent = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            key: arrowDown,
+            code: arrowDown,
+            keyCode: 40,
+            which: 40
+        });
 
-  function toggle(force) {
-    settings.scriptActive = force === undefined ? !settings.scriptActive : force;
-    if (settings.scriptActive) {
-      UI.show('#laser-pointer');
-    } else {
-      UI.hide('#laser-pointer');
+        const arrowDownUpEvent = new KeyboardEvent('keyup', {
+            bubbles: true,
+            cancelable: true,
+            key: arrowDown,
+            code: arrowDown,
+            keyCode: 40,
+            which: 40
+        });
+
+        const arrowSideEvent = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            key: arrowSide,
+            code: arrowSide,
+            keyCode: arrowSide === 'ArrowLeft' ? 37 : 39,
+            which: arrowSide === 'ArrowLeft' ? 37 : 39
+        });
+
+        const arrowSideUpEvent = new KeyboardEvent('keyup', {
+            bubbles: true,
+            cancelable: true,
+            key: arrowSide,
+            code: arrowSide,
+            keyCode: arrowSide === 'ArrowLeft' ? 37 : 39,
+            which: arrowSide === 'ArrowLeft' ? 37 : 39
+        });
+
+        // Dispatch keydown events for Ctrl and ArrowDown
+        document.dispatchEvent(ctrlKeyDownEvent);
+        document.dispatchEvent(arrowDownEvent);
+
+        // After specified hold time, dispatch ArrowSide keydown event while still holding Ctrl and ArrowDown
+        setTimeout(function () {
+            document.dispatchEvent(arrowSideEvent);
+
+            // After specified release time, dispatch keyup events to release the keys
+            setTimeout(function () {
+                document.dispatchEvent(ctrlKeyUpEvent);
+                document.dispatchEvent(arrowDownUpEvent);
+                document.dispatchEvent(arrowSideUpEvent);
+            }, releaseTime); // Hold keys for the specified release time
+        }, holdTime); // Hold ArrowDown for the specified hold time before pressing ArrowLeft or ArrowRight
     }
-  }
 
-  function executeScript(scriptNumber, arrowDown, arrowSide) {
-    switch (scriptNumber) {
-      case 1:
-        holdCtrlArrow(arrowDown, arrowSide, 10, 500);
-        break;
-      case 2:
-        holdCtrlArrow(arrowDown, arrowSide, 200, 500);
-        break;
-      case 3:
-        holdCtrlArrow(arrowDown, arrowSide, 500, 700);
-        break;
-      case 4:
-        holdCtrlArrow(arrowDown, arrowSide, 300, 500);
-        break;
-      case 5:
-        holdCtrlArrowSingle(arrowSide === 'ArrowLeft' ? 'ArrowUp' : 'ArrowDown', 500);
-        break;
-      case 6:
-        holdCtrlArrow(arrowDown, arrowSide, 0, 500);
-        break;
-      case 7:
-        holdCtrlArrowSingle(arrowSide === 'ArrowLeft' ? 'ArrowUp' : 'ArrowDown', 230);
-        break;
-      case 8:
-        holdCtrlArrowSingle(arrowSide === 'ArrowLeft' ? 'ArrowUp' : 'ArrowDown', 300);
-        break;
-      case 9:
-        holdCtrlArrow(arrowDown, arrowSide, 300, 700);
-        break;
-      case 10:
-        holdCtrlArrow(arrowDown, arrowSide, 500, 1000);
-        break;
-      default:
-        console.log("Invalid script number");
+    function holdCtrlArrowSingle(arrowKey, releaseTime) {
+        const ctrlKeyDownEvent = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            key: 'Control',
+            code: 'ControlLeft',
+            keyCode: 17,
+            which: 17
+        });
+
+        const ctrlKeyUpEvent = new KeyboardEvent('keyup', {
+            bubbles: true,
+            cancelable: true,
+            key: 'Control',
+            code: 'ControlLeft',
+            keyCode: 17,
+            which: 17
+        });
+
+        const arrowKeyDownEvent = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            key: arrowKey,
+            code: arrowKey,
+            keyCode: arrowKey === 'ArrowUp' ? 38 : 40,
+            which: arrowKey === 'ArrowUp' ? 38 : 40
+        });
+
+        const arrowKeyUpEvent = new KeyboardEvent('keyup', {
+            bubbles: true,
+            cancelable: true,
+            key: arrowKey,
+            code: arrowKey,
+            keyCode: arrowKey === 'ArrowUp' ? 38 : 40,
+            which: arrowKey === 'ArrowUp' ? 38 : 40
+        });
+
+        // Dispatch keydown events for Ctrl and the specified arrow key
+        document.dispatchEvent(ctrlKeyDownEvent);
+        document.dispatchEvent(arrowKeyDownEvent);
+
+        // After specified release time, dispatch keyup events to release the keys
+        setTimeout(function () {
+            document.dispatchEvent(ctrlKeyUpEvent);
+            document.dispatchEvent(arrowKeyUpEvent);
+        }, releaseTime); // Hold keys for the specified release time
     }
-  }
 
-  function holdCtrlArrow(arrowDown, arrowSide, holdTime, releaseTime) {
-    const ctrlKeyDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      key: 'Control',
-      code: 'ControlLeft',
-      keyCode: 17,
-      which: 17
+    function holdKey(key) {
+        heldKey = key;
+
+        const keyDownEvent = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            key: key,
+            code: key,
+            keyCode: key === 'w' ? 87 : 83, // 87 for 'w', 83 for 's'
+            which: key === 'w' ? 87 : 83
+        });
+
+        // Dispatch keydown event
+        document.dispatchEvent(keyDownEvent);
+    }
+
+    function releaseKey(key) {
+        const keyUpEvent = new KeyboardEvent('keyup', {
+            bubbles: true,
+            cancelable: true,
+            key: key,
+            code: key,
+            keyCode: key === 'w' ? 87 : 83, // 87 for 'w', 83 for 's'
+            which: key === 'w' ? 87 : 83
+        });
+
+        // Dispatch keyup event
+        document.dispatchEvent(keyUpEvent);
+    }
+
+    function displayMessage(message) {
+        UI.addChatMessage(message); // Display the message in StarMash chat
+    }
+
+    // Register the extension with StarMash
+    SWAM.registerExtension({
+        name: 'Predator Dodges',
+        id: 'predatorDodges',
+        description: 'Automate dodges for Predator ship.',
+        version: '1.0.0',
+        author: 'Monarch'
     });
-
-    const ctrlKeyUpEvent = new KeyboardEvent('keyup', {
-      bubbles: true,
-      cancelable: true,
-      key: 'Control',
-      code: 'ControlLeft',
-      keyCode: 17,
-      which: 17
-    });
-
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      key: arrowDown,
-      code: arrowDown,
-      keyCode: 40,
-      which: 40
-    });
-
-    const arrowDownUpEvent = new KeyboardEvent('keyup', {
-      bubbles: true,
-      cancelable: true,
-      key: arrowDown,
-      code: arrowDown,
-      keyCode: 40,
-      which: 40
-    });
-
-    const arrowSideEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      key: arrowSide,
-      code: arrowSide,
-      keyCode: arrowSide === 'ArrowLeft' ? 37 : 39,
-      which: arrowSide === 'ArrowLeft' ? 37 : 39
-    });
-
-    const arrowSideUpEvent = new KeyboardEvent('keyup', {
-      bubbles: true,
-      cancelable: true,
-      key: arrowSide,
-      code: arrowSide,
-      keyCode: arrowSide === 'ArrowLeft' ? 37 : 39,
-      which: arrowSide === 'ArrowLeft' ? 37 : 39
-    });
-
-    document.dispatchEvent(ctrlKeyDownEvent);
-    document.dispatchEvent(arrowDownEvent);
-    document.dispatchEvent(arrowSideEvent);
-
-    setTimeout(() => {
-      document.dispatchEvent(arrowDownUpEvent);
-      document.dispatchEvent(arrowSideUpEvent);
-      document.dispatchEvent(ctrlKeyUpEvent);
-    }, holdTime);
-
-    setTimeout(() => {
-      document.dispatchEvent(ctrlKeyDownEvent);
-      document.dispatchEvent(arrowDownEvent);
-      document.dispatchEvent(arrowSideEvent);
-
-      setTimeout(() => {
-        document.dispatchEvent(arrowDownUpEvent);
-        document.dispatchEvent(arrowSideUpEvent);
-        document.dispatchEvent(ctrlKeyUpEvent);
-      }, holdTime);
-    }, releaseTime);
-  }
-
-  function holdCtrlArrowSingle(arrow, time) {
-    const ctrlKeyDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      key: 'Control',
-      code: 'ControlLeft',
-      keyCode: 17,
-      which: 17
-    });
-
-    const ctrlKeyUpEvent = new KeyboardEvent('keyup', {
-      bubbles: true,
-      cancelable: true,
-      key: 'Control',
-      code: 'ControlLeft',
-      keyCode: 17,
-      which: 17
-    });
-
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      key: arrow,
-      code: arrow,
-      keyCode: 40,
-      which: 40
-    });
-
-    const arrowDownUpEvent = new KeyboardEvent('keyup', {
-      bubbles: true,
-      cancelable: true,
-      key: arrow,
-      code: arrow,
-      keyCode: 40,
-      which: 40
-    });
-
-    document.dispatchEvent(ctrlKeyDownEvent);
-    document.dispatchEvent(arrowDownEvent);
-
-    setTimeout(() => {
-      document.dispatchEvent(arrowDownUpEvent);
-      document.dispatchEvent(ctrlKeyUpEvent);
-    }, time);
-  }
-
-  // Register mod
-  SWAM.registerExtension(extensionConfig);
-
-}());
+})();
