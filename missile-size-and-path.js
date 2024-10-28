@@ -2,7 +2,7 @@
   /**
    * Missile Size and Path Extension for SWAM
    * Author: MONARCH
-   * Description: Customize missile sizes, display missile paths, track missile positions, and visualize paths with dots.
+   * Description: Customize missile sizes, track missile positions based on size changes, and visualize paths with dots.
    * Version: 1.2.0
    */
 
@@ -292,13 +292,15 @@
 
     /**
      * Adding Missile Path to Newly Added Mobs
-     * This section has been uncommented to ensure missile paths are always added.
+     * This section has been commented out to disable missile path visualization.
      */
+    /*
     SWAM.on('mobAdded', (mob, player) => {
       if ([1, 2, 3, 5, 6, 7].includes(mob.type)) {
         mob.missilePath = addMissilePath(mob, player);
       }
     });
+    */
 
   });
 
@@ -308,7 +310,7 @@
   SWAM.registerExtension({
     name: "Missile Size and Path",
     id: "missile-size-and-path",
-    description: "Customize missile sizes, display missile paths, track missile positions, and visualize paths with dots.",
+    description: "Customize missile sizes, track missile positions based on size changes, and visualize paths with dots.",
     author: "MONARCH",
     version: "1.2.0",
     settingsProvider: createSettingsProvider()
