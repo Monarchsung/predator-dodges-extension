@@ -1,6 +1,8 @@
+EXPLANATION FOR missile-size-and-path.js PATH
+
 1. Checking for Required Game Objects
 
-// Ensure that necessary game objects are accessible
+// Ensure that necessary game objects are accessible for your client
 if (typeof Mobs === 'undefined' || typeof MobType === 'undefined' || typeof Players === 'undefined' || typeof game === 'undefined') {
     console.error('Required game objects (Mobs, MobType, Players, game) are not defined.');
     return;
@@ -14,7 +16,7 @@ console.log('Missile Tracker Overlay script initialized.');
 
 2. Defining Missile Types to Track
 
-// Define the missile types you're interested in
+// Define the missile types from your client
 const missileTypes = new Set([
     MobType.PredatorMissile,
     MobType.TornadoSingleMissile,
@@ -244,12 +246,10 @@ Potential Enhancements and Considerations
 	•	The appearance of missile indicators (color, size, labels) can be customized further for better visibility or thematic consistency with the game.
 	•	Performance Optimization:
 	•	If the number of missiles is large, additional optimizations (like spatial partitioning) might be necessary to maintain performance.
-	•	Interactivity:
-	•	Although the canvas is set to pointer-events: none, future enhancements could include interactive features, such as clicking on a missile to get more information, by handling pointer events appropriately.
 	•	Scalability:
-	•	The script assumes certain structures and properties within the Mobs, Players, and game objects. Ensuring compatibility across different game versions or environments may require additional checks or configurations.
+	•	The script assumes certain structures and properties within the Mobs, Players, and game objects. Ensuring compatibility within the original vanilla client or environments may require additional checks or configurations for other clients.
 
-This comprehensive breakdown should provide a clear understanding of how the Missile Tracker Overlay script functions and how each component contributes to its overall purpose.
+This breakdown should provide a clear understanding of how the Missile Tracker Overlay script functions, how it's only for drawing a red canvas onto missiles and how each component contributes to its overall purpose.
 
 Missile Tracker Overlay Script
 
@@ -257,7 +257,7 @@ This missile tracking and visualization code is based on the original vanilla cl
 
 Adding a Missile Line of Path
 
-To implement a missile path line, you would need to:
+To implement a missile path line, I recommend:
 
 	1.	Track the Ongoing Coordinates and Speed:
 	•	Create a function that continuously retrieves the x and y coordinates of the canvas circle drawn on each missile.
