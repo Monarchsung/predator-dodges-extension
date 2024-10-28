@@ -3,7 +3,7 @@
    * Missile Size and Path Extension for SWAM
    * Author: YourName
    * Description: Customize missile sizes and display missile paths.
-   * Version: 1.1.0
+   * Version: 1.3.0
    */
 
   // Define default settings
