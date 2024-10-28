@@ -2,13 +2,13 @@
   /**
    * Missile Size and Path Extension for SWAM
    * Author: YourName
-   * Description: Customize missile sizes and optionally display missile paths.
-   * Version: 1.0.0
+   * Description: Customize missile sizes and display missile paths.
+   * Version: 1.1.0
    */
 
   // Define default settings
   const DEFAULT_MISSILE_SIZE = 100; // Percentage
-  const DEFAULT_MISSILE_PATH_SIZE = 40; // 0 means no path visualization
+  const DEFAULT_MISSILE_PATH_SIZE = 500; // 0 means no path visualization
 
   let settings = {
     missileSize: DEFAULT_MISSILE_SIZE,
@@ -39,7 +39,7 @@
       default: DEFAULT_MISSILE_SIZE,
     });
 
-    // Add missile path size slider (optional)
+    // Add missile path size slider
     missileSection.addSliderField("missilePointerSize", "Missile Path Size", {
       min: 0,
       max: 1000,
@@ -236,16 +236,14 @@
     });
 
     /**
-     * Optionally add missile path when a missile is added
-     * This is currently commented out in the original code, uncomment if needed
+     * Adding Missile Path to Newly Added Mobs
+     * New
      */
-    /*
     SWAM.on('mobAdded', (mob, player) => {
       if ([1, 2, 3, 5, 6, 7].includes(mob.type)) {
         mob.missilePath = addMissilePath(mob, player);
       }
     });
-    */
 
   });
 
@@ -255,9 +253,9 @@
   SWAM.registerExtension({
     name: "Missile Size and Path",
     id: "missile-size-and-path",
-    description: "Customize missile sizes and optionally display missile paths.",
+    description: "Customize missile sizes and display missile paths.",
     author: "MONARCH",
-    version: "1.0.0",
+    version: "1.1.0",
     settingsProvider: createSettingsProvider()
   });
 
