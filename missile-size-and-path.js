@@ -1,9 +1,9 @@
 (function() {
   /**
    * Missile Size and Path Extension for SWAM
-   * Author: MONARCH
-   * Description: Customize missile sizes, track missile positions based on size changes, and visualize paths with dots.
-   * Version: 1.2.0
+   * Author: YourName
+   * Description: Customize missile sizes and display missile paths.
+   * Version: 1.1.0
    */
 
   // Define default settings
@@ -114,195 +114,76 @@
   };
 
   /**
-   * Function to create missile path texture
-   * @returns {PIXI.Texture}
+   * Function to determine mob scale based on missile size
+   * @param {Object} mob - The mob object
+   * @returns {Array} - [scaleX, scaleY]
    */
-  function createMissilePathTexture() {
-    const width = 1;  // Width of the rectangle
-    const height = 500; // Height of the rectangle
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // White
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)'); // Transparent
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-    return PIXI.Texture.from(canvas);
-  }
+  const getMobScale = (mob) => {
+    const missileSizeMultiplier = missileSizeRef.current / 100;
+
+    switch (mob.type) {
+      case 2:
+      case 3:
+        return [0.2 * missileSizeMultiplier, 0.2 * missileSizeMultiplier];
+      default:
+        return [0.2 * missileSizeMultiplier, 0.15 * missileSizeMultiplier];
+    }
+  };
 
   /**
-   * Missile Size and Path Extension Core Logic
+   * Function to update missile size for a mob
+   * @param {Object} data - Data containing mob id
+   * @param {Object} ex - Extra data (unused)
+   * @param {String} playerId - The ID of the player
    */
-  SWAM.on("gameRunning", function() {
-    // Create missile path texture
-    const MissilePathTexture = createMissilePathTexture();
+  const updateMissileSize = (data, ex, playerId) => {
+    const mob = Mobs.get(data.id);
+    const player = Players.get(playerId);
+    if (!mob) return;
+    if (![1, 2, 3, 5, 6, 7].includes(mob.type)) return;
 
-    // Reference objects to store current missile size and path size
-    let missileSizeRef = { current: settings.missileSize };
-    let missilePathRef = { current: settings.missilePointerSize };
+    const scale = getMobScale(mob);
+    mob.sprites.shadow.scale.set(...scale);
 
-    // Store original _getMobScale from theme
-    const originalMobScaler = SWAM.Theme?._getMobScale;
+    // Apply green color to the missile
+    mob.sprites.sprite.tint = 0x00FF00; // Green color in hexadecimal
 
-    /**
-     * Deferred update function to avoid blocking
-     */
-    const deferredUpdateMissileSize = (...args) => setTimeout(() => updateMissileSize(...args), 0);
+    if (SWAM.Theme?._getMobScale && game.gameType === 2) return;
 
-    /**
-     * Function to add missile path sprite to a mob
-     * @param {Object} mob - The mob (player/enemy) object
-     * @param {Object} player - The player object
-     * @returns {PIXI.Sprite} - The missile path sprite
-     */
-    const addMissilePath = (mob, player) => {
-      if (!missilePathRef.current) return null;
+    mob.sprites.sprite.scale.set(...scale);
+  };
 
-      const missilePath = new PIXI.Sprite(MissilePathTexture);
-      missilePath.rotation = Math.PI;
-      const w = 2 / game.graphics.layers.groundobjects.scale.x;
-      missilePath.x = w / 2;
-      missilePath.width = w;
-      missilePath.height = missilePathRef.current; // Use missilePathRef.current for dynamic height
-      missilePath.alpha = 0.3;
+  /**
+   * Initialize missile size and path based on settings
+   */
+  onSettingsUpdated(['missileSize', 'missilePointerSize'], ({ missileSize, missilePointerSize }) => {
+    missileSizeRef.current = Number(missileSize);
+    missilePathRef.current = missilePointerSize;
 
-      if (SWAM.Theme?._getThrusterTint) {
-        missilePath.tint = SWAM.Theme._getThrusterTint(player);
-      }
-
-      game.graphics.layers.projectiles.addChild(missilePath);
-      return missilePath;
-    };
-
-    /**
-     * Function to determine mob scale based on missile size
-     * @param {Object} mob - The mob object
-     * @returns {Array} - [scaleX, scaleY]
-     */
-    const getMobScale = (mob) => {
-      const missileSizeMultiplier = missileSizeRef.current / 100;
-
-      switch (mob.type) {
-        case 2:
-        case 3:
-          return [0.2 * missileSizeMultiplier, 0.2 * missileSizeMultiplier];
-        default:
-          return [0.2 * missileSizeMultiplier, 0.15 * missileSizeMultiplier];
-      }
-    };
-
-    /**
-     * Function to update missile size for a mob
-     * @param {Object} data - Data containing mob id
-     * @param {Object} ex - Extra data (unused)
-     * @param {String} playerId - The ID of the player
-     */
-    const updateMissileSize = (data, ex, playerId) => {
-      const mob = Mobs.get(data.id);
-      const player = Players.get(playerId);
-      if (!mob) return;
-      if (![1, 2, 3, 5, 6, 7].includes(mob.type)) return;
-
-      const scale = getMobScale(mob);
-      mob.sprites.shadow.scale.set(...scale);
-
-      if (SWAM.Theme?._getMobScale && game.gameType === 2) return;
-
-      mob.sprites.sprite.scale.set(...scale);
-
-      // Tracking Missile Position on Size Change
-      trackMissilePosition(mob);
-    };
-
-    /**
-     * Missile Position Tracking and Dot Visualization
-     * @param {Object} mob - The missile mob object
-     */
-    const trackMissilePosition = (mob) => {
-      if (!mob) return;
-
-      // Initialize tracking for this missile
-      if (!mob.trackingData) {
-        mob.trackingData = {
-          positions: [],
-          dot: createTrackingDot(),
-        };
-        game.graphics.layers.projectiles.addChild(mob.trackingData.dot);
-      }
-
-      // Function to update the dot's position
-      const updateDotPosition = () => {
-        if (!mob || !mob.trackingData || !mob.trackingData.dot) return;
-        mob.trackingData.positions.push({ x: mob.pos.x, y: mob.pos.y, timestamp: Date.now() });
-        mob.trackingData.dot.position.set(mob.pos.x, mob.pos.y);
-      };
-
-      // Listen to frame updates to move the dot
-      mob.frameListener = updateDotPosition;
-      SWAM.on('frameUpdate', updateDotPosition);
-
-      // Cleanup when missile is destroyed
-      mob.destroyListener = () => {
-        if (mob.trackingData && mob.trackingData.dot) {
-          game.graphics.layers.projectiles.removeChild(mob.trackingData.dot);
-          mob.trackingData.dot.destroy();
-        }
-        SWAM.off('frameUpdate', mob.frameListener);
-      };
-
-      SWAM.on('mobDestroyed', mob.destroyListener);
-    };
-
-    /**
-     * Function to create a small tracking dot
-     * @returns {PIXI.Sprite} - The tracking dot sprite
-     */
-    const createTrackingDot = () => {
-      const dot = new PIXI.Graphics();
-      dot.beginFill(0xFF0000); // Red color
-      dot.drawCircle(0, 0, 3); // Small radius
-      dot.endFill();
-      dot.alpha = 0.8;
-      return dot;
-    };
-
-    /**
-     * Initialize missile size and path based on settings
-     */
-    onSettingsUpdated(['missileSize', 'missilePointerSize'], ({ missileSize, missilePointerSize }) => {
-      missileSizeRef.current = Number(missileSize);
-      missilePathRef.current = missilePointerSize;
-
-      if (SWAM.Theme?._getMobScale) {
-        if (Number(missileSize) !== 100) {
-          SWAM.Theme._getMobScale = getMobScale;
-        } else {
-          SWAM.Theme._getMobScale = originalMobScaler;
-        }
-      }
-
+    if (SWAM.Theme?._getMobScale) {
       if (Number(missileSize) !== 100) {
-        SWAM.on('mobAdded', deferredUpdateMissileSize);
+        SWAM.Theme._getMobScale = getMobScale;
       } else {
-        SWAM.off('mobAdded', deferredUpdateMissileSize);
+        SWAM.Theme._getMobScale = originalMobScaler;
       }
-    });
+    }
 
-    /**
-     * Adding Missile Path to Newly Added Mobs
-     * This section has been commented out to disable missile path visualization.
-     */
-    /*
-    SWAM.on('mobAdded', (mob, player) => {
-      if ([1, 2, 3, 5, 6, 7].includes(mob.type)) {
-        mob.missilePath = addMissilePath(mob, player);
-      }
-    });
-    */
-
+    if (Number(missileSize) !== 100) {
+      SWAM.on('mobAdded', deferredUpdateMissileSize);
+    } else {
+      SWAM.off('mobAdded', deferredUpdateMissileSize);
+    }
   });
+
+  /**
+   * Adding Missile Path to Newly Added Mobs
+   * This section has been commented out to disable missile paths.
+   */
+  // SWAM.on('mobAdded', (mob, player) => {
+  //   if ([1, 2, 3, 5, 6, 7].includes(mob.type)) {
+  //     mob.missilePath = addMissilePath(mob, player);
+  //   }
+  // });
 
   /**
    * Register the extension with SWAM
@@ -310,9 +191,9 @@
   SWAM.registerExtension({
     name: "Missile Size and Path",
     id: "missile-size-and-path",
-    description: "Customize missile sizes, track missile positions based on size changes, and visualize paths with dots.",
+    description: "Customize missile sizes and display missile paths. TESTING",
     author: "MONARCH",
-    version: "1.2.0",
+    version: "1.3.0",
     settingsProvider: createSettingsProvider()
   });
 
