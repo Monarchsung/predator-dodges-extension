@@ -1,4 +1,4 @@
-# Explanation for `codeForDe*.js` Path
+# Explanation for [`codeForDe*.js`](https://github.com/Monarchsung/predator-dodges-extension/blob/master/codeForDe*.js) Path
 
 ## 1. Checking for Required Game Objects
 
