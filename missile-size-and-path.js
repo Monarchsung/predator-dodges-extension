@@ -1,9 +1,9 @@
 (function() {
   /**
    * Missile Size and Path Extension for SWAM
-   * Author: YourName
-   * Description: Customize missile sizes and display missile paths.
-   * Version: 1.1.0
+   * Author: MONARCH
+   * Description: Customize missile sizes, display missile paths, track missile positions, and visualize paths with dots.
+   * Version: 1.2.0
    */
 
   // Define default settings
@@ -211,6 +211,61 @@
       if (SWAM.Theme?._getMobScale && game.gameType === 2) return;
 
       mob.sprites.sprite.scale.set(...scale);
+
+      // Tracking Missile Position on Size Change
+      trackMissilePosition(mob);
+    };
+
+    /**
+     * Missile Position Tracking and Dot Visualization
+     * @param {Object} mob - The missile mob object
+     */
+    const trackMissilePosition = (mob) => {
+      if (!mob) return;
+
+      // Initialize tracking for this missile
+      if (!mob.trackingData) {
+        mob.trackingData = {
+          positions: [],
+          dot: createTrackingDot(),
+        };
+        game.graphics.layers.projectiles.addChild(mob.trackingData.dot);
+      }
+
+      // Function to update the dot's position
+      const updateDotPosition = () => {
+        if (!mob || !mob.trackingData || !mob.trackingData.dot) return;
+        mob.trackingData.positions.push({ x: mob.pos.x, y: mob.pos.y, timestamp: Date.now() });
+        mob.trackingData.dot.position.set(mob.pos.x, mob.pos.y);
+      };
+
+      // Listen to frame updates to move the dot
+      mob.frameListener = updateDotPosition;
+      SWAM.on('frameUpdate', updateDotPosition);
+
+      // Cleanup when missile is destroyed
+      mob.destroyListener = () => {
+        if (mob.trackingData && mob.trackingData.dot) {
+          game.graphics.layers.projectiles.removeChild(mob.trackingData.dot);
+          mob.trackingData.dot.destroy();
+        }
+        SWAM.off('frameUpdate', mob.frameListener);
+      };
+
+      SWAM.on('mobDestroyed', mob.destroyListener);
+    };
+
+    /**
+     * Function to create a small tracking dot
+     * @returns {PIXI.Sprite} - The tracking dot sprite
+     */
+    const createTrackingDot = () => {
+      const dot = new PIXI.Graphics();
+      dot.beginFill(0xFF0000); // Red color
+      dot.drawCircle(0, 0, 3); // Small radius
+      dot.endFill();
+      dot.alpha = 0.8;
+      return dot;
     };
 
     /**
@@ -237,7 +292,7 @@
 
     /**
      * Adding Missile Path to Newly Added Mobs
-     * New
+     * This section has been uncommented to ensure missile paths are always added.
      */
     SWAM.on('mobAdded', (mob, player) => {
       if ([1, 2, 3, 5, 6, 7].includes(mob.type)) {
@@ -253,9 +308,9 @@
   SWAM.registerExtension({
     name: "Missile Size and Path",
     id: "missile-size-and-path",
-    description: "Customize missile sizes and display missile paths.",
+    description: "Customize missile sizes, display missile paths, track missile positions, and visualize paths with dots.",
     author: "MONARCH",
-    version: "1.1.0",
+    version: "1.2.0",
     settingsProvider: createSettingsProvider()
   });
 
