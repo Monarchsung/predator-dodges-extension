@@ -1,4 +1,4 @@
-# Explanation for `missile-size-and-path.js` Path
+# Explanation for `codeForDe*.js` Path
 
 ## 1. Checking for Required Game Objects
 
