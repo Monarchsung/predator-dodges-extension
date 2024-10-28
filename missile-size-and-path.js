@@ -1,7 +1,7 @@
 (function() {
   /**
    * Missile Size and Path Extension for SWAM
-   * Author: YourName
+   * Author: TESTING
    * Description: Customize missile sizes.
    * Version: 1.1.0
    */
